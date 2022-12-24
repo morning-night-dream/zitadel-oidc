@@ -48,6 +48,9 @@ func main() {
 		logrus.Fatalf("error creating provider %s", err.Error())
 	}
 
+	// MND_MEMO: どうやってstateを生成するかの処理
+	// MND_MEMO: ここで生成しているわけではないので注意
+
 	// generate some state (representing the state of the user in your application,
 	// e.g. the page where he was before sending him to login
 	state := func() string {

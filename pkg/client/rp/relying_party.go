@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -255,7 +256,7 @@ func WithVerifierOpts(opts ...VerifierOption) Option {
 
 // WithClientKey specifies the path to the key.json to be used for the JWT Profile Client Authentication on the token endpoint
 //
-//deprecated: use WithJWTProfile(SignerFromKeyPath(path)) instead
+// deprecated: use WithJWTProfile(SignerFromKeyPath(path)) instead
 func WithClientKey(path string) Option {
 	return WithJWTProfile(SignerFromKeyPath(path))
 }
@@ -304,7 +305,7 @@ func SignerFromKeyAndKeyID(key []byte, keyID string) SignerFromKey {
 
 // Discover calls the discovery endpoint of the provided issuer and returns the found endpoints
 //
-//deprecated: use client.Discover
+// deprecated: use client.Discover
 func Discover(issuer string, httpClient *http.Client) (Endpoints, error) {
 	wellKnown := strings.TrimSuffix(issuer, "/") + oidc.DiscoveryEndpoint
 	req, err := http.NewRequest("GET", wellKnown, nil)
@@ -323,7 +324,7 @@ func Discover(issuer string, httpClient *http.Client) (Endpoints, error) {
 }
 
 // AuthURL returns the auth request url
-//(wrapping the oauth2 `AuthCodeURL`)
+// (wrapping the oauth2 `AuthCodeURL`)
 func AuthURL(state string, rp RelyingParty, opts ...AuthURLOpt) string {
 	authOpts := make([]oauth2.AuthCodeOption, 0)
 	for _, opt := range opts {
@@ -337,12 +338,17 @@ func AuthURL(state string, rp RelyingParty, opts ...AuthURLOpt) string {
 func AuthURLHandler(stateFn func() string, rp RelyingParty) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		opts := make([]AuthURLOpt, 0)
+		// MND_MEMO: リクエストが発生したタイミングでstateを生成する -> 一意なsessionであることを証明したい？
 		state := stateFn()
+		// MND_MEMO: stateをcookieに設定しておくことでアプリが変わらないことを保証できる？
 		if err := trySetStateCookie(w, state, rp); err != nil {
 			http.Error(w, "failed to create state cookie: "+err.Error(), http.StatusUnauthorized)
 			return
 		}
+		// PKCE: Authorization Code Flow with Proof Key for Code Exchange
 		if rp.IsPKCE() {
+			// MND_MEMO: ログ出力してみたが、出力されず。どうやらここは通過しないらしい
+			log.Printf("Authorization Code flow with Proof Key for Code Exchangeを使っている")
 			codeChallenge, err := GenerateAndStoreCodeChallenge(w, rp)
 			if err != nil {
 				http.Error(w, "failed to create code challenge: "+err.Error(), http.StatusUnauthorized)
@@ -350,6 +356,7 @@ func AuthURLHandler(stateFn func() string, rp RelyingParty) http.HandlerFunc {
 			}
 			opts = append(opts, WithCodeChallenge(codeChallenge))
 		}
+		log.Printf("auth url: %s", AuthURL(state, rp, opts...))
 		http.Redirect(w, r, AuthURL(state, rp, opts...), http.StatusFound)
 	}
 }

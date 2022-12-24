@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
+	"log"
 	"math/big"
 	"sync"
 	"time"
@@ -112,6 +113,12 @@ func (s *Storage) CreateAuthRequest(ctx context.Context, authReq *oidc.AuthReque
 
 	// you'll also have to create a unique id for the request (this might be done by your database; we'll use a uuid)
 	request.ID = uuid.NewString()
+
+	// MND_MEMO: ログイン画面の取得=ログインの開始であろう。
+	// MND_MEMO: どのセッションでログインをしたいか管理する必要がある
+	// MND_MEMO: クライアントがそのセッションは宣言してくる（リクエストにstateとして含まれる）
+	// MND_MEMO: その情報は認証サーバーがauthRequestIDをキーとして管理する
+	log.Printf("ログイン画面を取得するためにアプリサーバーが送信してきた値%+vとそのキー(authRequestID)%sを保存しました。", request, request.ID)
 
 	// and save it in your database (for demonstration purposed we will use a simple map)
 	s.authRequests[request.ID] = request

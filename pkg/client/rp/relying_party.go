@@ -333,6 +333,7 @@ func AuthURL(state string, rp RelyingParty, opts ...AuthURLOpt) string {
 	return rp.OAuthConfig().AuthCodeURL(state, authOpts...)
 }
 
+// PROTOCOL_MEMO(1): アプリサーバーが認証サーバーに対してログイン処理を開始しますよの処理部分
 // AuthURLHandler extends the `AuthURL` method with a http redirect handler
 // including handling setting cookie for secure `state` transfer
 func AuthURLHandler(stateFn func() string, rp RelyingParty) http.HandlerFunc {

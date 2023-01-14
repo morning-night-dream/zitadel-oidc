@@ -2,6 +2,7 @@ package op
 
 import (
 	"context"
+	"log"
 	"net/http"
 
 	httphelper "github.com/zitadel/oidc/pkg/http"
@@ -29,6 +30,9 @@ func CodeExchange(w http.ResponseWriter, r *http.Request, exchanger Exchanger) {
 		RequestError(w, r, err)
 		return
 	}
+	// http://openid-foundation-japan.github.io/openid-connect-core-1_0.ja.html#TokenResponse に対応
+	log.Printf("token response %+v", resp)
+	// &{AccessToken:NGFDKaWZkjXkNqfG33vZAsApwA4UPJ6b59iv2nQhKa2q25HqP9r5wnx4Wmu2_rqIOLwVyDJswPI TokenType:Bearer RefreshToken: ExpiresIn:299 IDToken:eyJhbGciOiJSUzI1NiIsImtpZCI6ImlkIn0.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0Ojg4ODgiLCJhdWQiOlsid2ViIl0sImF6cCI6IndlYiIsImF0X2hhc2giOiJlYUo5T0VrNkdmb1E0eE1HLTUxQzlnIiwiY19oYXNoIjoiNGxlWkdDbVVLZ3pfdFpTTkJIV0RxdyIsImFtciI6WyJwd2QiXSwiZXhwIjoxNjczNjg3ODczLCJpYXQiOjE2NzM2ODQyNzMsInN1YiI6ImlkMSJ9.sY29GD9oO1hMdt4pgJZN5Magm6Z0L3cWUfEtWGUAlKB3cvJdCWQYnVvGuLTc-kUhREQIsiMNyZvWWXKfhVnnGfiX0ruDr808AybHGLDgYp5FAYTW_R0NLoKaMa3sefSdmytDNkTF_LArwDcoAwWEMNApWTaF6p9tOA8hN5wjC64D5FluPq2jGDwrhng91PHJS1vvhtcN0jnZfXOvD9VwoGSPZpCCYNViMJRGAtHMcPssazkveAmVzNaCQPl4nYO-5WIQHeYcM6-vK2Pl3mdbrOATNUSugVGqYLLZf-5JynaM-4VzzFeEZpBiieTPMhSrozNrGmUfHKYbXbQu3NwFcQ State:dab340cf-7a1e-4214-83bd-a8b6dc7e2787}
 	httphelper.MarshalJSON(w, resp)
 }
 
@@ -44,6 +48,7 @@ func ParseAccessTokenRequest(r *http.Request, decoder httphelper.Decoder) (*oidc
 
 // ValidateAccessTokenRequest validates the token request parameters including authorization check of the client
 // and returns the previous created auth request corresponding to the auth code
+// MND-MEMO: http://openid-foundation-japan.github.io/openid-connect-core-1_0.ja.html#TokenRequestValidation に対応
 func ValidateAccessTokenRequest(ctx context.Context, tokenReq *oidc.AccessTokenRequest, exchanger Exchanger) (AuthRequest, Client, error) {
 	authReq, client, err := AuthorizeCodeClient(ctx, tokenReq, exchanger)
 	if err != nil {

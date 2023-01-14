@@ -2,6 +2,7 @@ package op
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"net/url"
 
@@ -34,6 +35,7 @@ func Exchange(w http.ResponseWriter, r *http.Request, exchanger Exchanger) {
 	grantType := r.FormValue("grant_type")
 	switch grantType {
 	case string(oidc.GrantTypeCode):
+		log.Printf("grant_typeがcodeなので、CodeExchangeを実行")
 		CodeExchange(w, r, exchanger)
 		return
 	case string(oidc.GrantTypeRefreshToken):

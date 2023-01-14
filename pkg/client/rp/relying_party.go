@@ -373,6 +373,8 @@ func GenerateAndStoreCodeChallenge(w http.ResponseWriter, rp RelyingParty) (stri
 
 // CodeExchange handles the oauth2 code exchange, extracting and validating the id_token
 // returning it parsed together with the oauth2 tokens (access, refresh)
+// CodeExchange は oauth2 コード交換を処理し、id_token を抽出して検証します
+// oauth2 トークン (アクセス、更新) と一緒に解析して返します
 func CodeExchange(ctx context.Context, code string, rp RelyingParty, opts ...CodeExchangeOpt) (tokens *oidc.Tokens, err error) {
 	ctx = context.WithValue(ctx, oauth2.HTTPClient, rp.HttpClient())
 	codeOpts := make([]oauth2.AuthCodeOption, 0)
@@ -380,6 +382,9 @@ func CodeExchange(ctx context.Context, code string, rp RelyingParty, opts ...Cod
 		codeOpts = append(codeOpts, opt()...)
 	}
 
+	// codeからaccess tokenを生成している
+	log.Printf("token endpoint: %s", rp.OAuthConfig().Endpoint.TokenURL)
+	log.Printf("にアクセスしてトークンを取得します。")
 	token, err := rp.OAuthConfig().Exchange(ctx, code, codeOpts...)
 	if err != nil {
 		return nil, err
@@ -398,6 +403,9 @@ func CodeExchange(ctx context.Context, code string, rp RelyingParty, opts ...Cod
 	if err != nil {
 		return nil, err
 	}
+
+	log.Printf("code: %s", code)
+	log.Printf("access token: %s", token.AccessToken)
 
 	return &oidc.Tokens{Token: token, IDTokenClaims: idToken, IDToken: idTokenString}, nil
 }
@@ -452,6 +460,7 @@ type CodeExchangeUserinfoCallback func(w http.ResponseWriter, r *http.Request, t
 // on success it will pass the userinfo into its callback function as well
 func UserinfoCallback(f CodeExchangeUserinfoCallback) CodeExchangeCallback {
 	return func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens, state string, rp RelyingParty) {
+		log.Printf("access token: %s", tokens.AccessToken)
 		info, err := Userinfo(tokens.AccessToken, tokens.TokenType, tokens.IDTokenClaims.GetSubject(), rp)
 		if err != nil {
 			http.Error(w, "userinfo failed: "+err.Error(), http.StatusUnauthorized)
@@ -463,6 +472,7 @@ func UserinfoCallback(f CodeExchangeUserinfoCallback) CodeExchangeCallback {
 
 // Userinfo will call the OIDC Userinfo Endpoint with the provided token
 func Userinfo(token, tokenType, subject string, rp RelyingParty) (oidc.UserInfo, error) {
+	log.Printf("認証サーバーにuser情報取得しに行きます。")
 	req, err := http.NewRequest("GET", rp.UserinfoEndpoint(), nil)
 	if err != nil {
 		return nil, err

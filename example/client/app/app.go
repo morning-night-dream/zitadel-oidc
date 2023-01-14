@@ -88,6 +88,7 @@ func main() {
 	// with the returned tokens from the token endpoint
 	// in this example the callback function itself is wrapped by the UserinfoCallback which
 	// will call the Userinfo endpoint, check the sub and pass the info into the callback function
+	// MND-MEMO: 認証フローが終わり認証サーバーがリダイレクト先としてエンドユーザーにアクセスさせているエンドポイント
 	http.Handle(callbackPath, rp.CodeExchangeHandler(rp.UserinfoCallback(marshalUserinfo), provider))
 
 	// if you would use the callback without calling the userinfo endpoint, simply switch the callback handler for:

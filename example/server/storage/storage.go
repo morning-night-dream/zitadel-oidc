@@ -93,6 +93,9 @@ func (s *Storage) CheckUsernamePassword(username, password, id string) error {
 		// so that you'll be able to get more information about the user after the login
 		request.UserID = user.ID
 
+		// これはのちのちリダイレクトして処理をするための布石になっている？
+		log.Printf("認証が成功したのでpasswordCheckedをtrueにします。")
+
 		// you will have to change some state on the request to guide the user through possible multiple steps of the login process
 		// in this example we'll simply check the username / password and set a boolean to true
 		// therefore we will also just check this boolean if the request / login has been finished
@@ -110,6 +113,7 @@ func (s *Storage) CreateAuthRequest(ctx context.Context, authReq *oidc.AuthReque
 
 	// typically, you'll fill your storage / storage model with the information of the passed object
 	request := authRequestToInternal(authReq, userID)
+	log.Printf("ログイン画面を取得するためにアプリサーバーが送信してきた値: %+v", request)
 
 	// you'll also have to create a unique id for the request (this might be done by your database; we'll use a uuid)
 	request.ID = uuid.NewString()
@@ -118,7 +122,8 @@ func (s *Storage) CreateAuthRequest(ctx context.Context, authReq *oidc.AuthReque
 	// MND_MEMO: どのセッションでログインをしたいか管理する必要がある
 	// MND_MEMO: クライアントがそのセッションは宣言してくる（リクエストにstateとして含まれる）
 	// MND_MEMO: その情報は認証サーバーがauthRequestIDをキーとして管理する
-	log.Printf("ログイン画面を取得するためにアプリサーバーが送信してきた値%+vとそのキー(authRequestID)%sを保存しました。", request, request.ID)
+	log.Printf("ログイン画面を取得するためにアプリサーバーが送信してきた値を管理するためのキー(authRequestID)%s", request.ID)
+	log.Printf("を認証サーバーのストレージに保存しました。")
 
 	// and save it in your database (for demonstration purposed we will use a simple map)
 	s.authRequests[request.ID] = request

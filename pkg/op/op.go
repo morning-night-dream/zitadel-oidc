@@ -3,6 +3,7 @@ package op
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -71,9 +72,13 @@ func CreateRouter(o OpenIDProvider, interceptors ...HttpInterceptor) *mux.Router
 	router.HandleFunc(readinessEndpoint, readyHandler(o.Probes()))
 	router.HandleFunc(oidc.DiscoveryEndpoint, discoveryHandler(o, o.Signer()))
 	router.Handle(o.AuthorizationEndpoint().Relative(), intercept(authorizeHandler(o)))
+	// MND-MEMO: ログインに成功したあとに認証サーバーが次にリダイレクトさせるエンドポイント
+	// MND-MEMO: 本来のアプリサーバーへとリダイレクトさせるためのエンドポイント -> なんでここを経由してリダイレクトさせる？最初からアプリサーバーにリダイレクトさせれば？
 	router.NewRoute().Path(authCallbackPath(o)).Queries("id", "{id}").Handler(intercept(authorizeCallbackHandler(o)))
+	// MND-MEMO: トークン取得用のエンドポイント
 	router.Handle(o.TokenEndpoint().Relative(), intercept(tokenHandler(o)))
 	router.HandleFunc(o.IntrospectionEndpoint().Relative(), introspectionHandler(o))
+	// MND-MEMO: ユーザー情報取得用のエンドポイント
 	router.HandleFunc(o.UserinfoEndpoint().Relative(), userinfoHandler(o))
 	router.HandleFunc(o.RevocationEndpoint().Relative(), revocationHandler(o))
 	router.Handle(o.EndSessionEndpoint().Relative(), intercept(endSessionHandler(o)))
@@ -84,11 +89,18 @@ func CreateRouter(o OpenIDProvider, interceptors ...HttpInterceptor) *mux.Router
 // AuthCallbackURL builds the url for the redirect (with the requestID) after a successful login
 func AuthCallbackURL(o OpenIDProvider) func(string) string {
 	return func(requestID string) string {
+		// callback用のurlを確認してみる
+		// ここの段階で認証に成功している
+		// 認証成功しました。そこから先まだ続きがあるのでこっちにアクセスしてくださいの指示をエンドユーザーに送信（リダイレクトさせる）
+		log.Printf("認証サーバーがエンドユーザーに返すcallback用のurlを確認してみる")
+		log.Printf("issuer: %s, AuthCallbackURL: %s", o.Issuer(), o.AuthorizationEndpoint().Relative())
+		log.Printf("callback url: %s", o.AuthorizationEndpoint().Absolute(o.Issuer()))
 		return o.AuthorizationEndpoint().Absolute(o.Issuer()) + authCallbackPathSuffix + "?id=" + requestID
 	}
 }
 
 func authCallbackPath(o OpenIDProvider) string {
+	log.Printf("auth callback path: %s", o.AuthorizationEndpoint().Relative())
 	return o.AuthorizationEndpoint().Relative() + authCallbackPathSuffix
 }
 
@@ -117,17 +129,19 @@ type endpoints struct {
 
 // NewOpenIDProvider creates a provider. The provider provides (with HttpHandler())
 // a http.Router that handles a suite of endpoints (some paths can be overridden):
-//  /healthz
-//  /ready
-//  /.well-known/openid-configuration
-//  /oauth/token
-//  /oauth/introspect
-//  /callback
-//  /authorize
-//  /userinfo
-//  /revoke
-//  /end_session
-//  /keys
+//
+//	/healthz
+//	/ready
+//	/.well-known/openid-configuration
+//	/oauth/token
+//	/oauth/introspect
+//	/callback
+//	/authorize
+//	/userinfo
+//	/revoke
+//	/end_session
+//	/keys
+//
 // This does not include login. Login is handled with a redirect that includes the
 // request ID. The redirect for logins is specified per-client by Client.LoginURL().
 // Successful logins should mark the request as authorized and redirect back to to
@@ -190,7 +204,7 @@ type openidProvider struct {
 	interceptors            []HttpInterceptor
 	timer                   <-chan time.Time
 	accessTokenVerifierOpts []AccessTokenVerifierOpt
-	idTokenHintVerifierOpts     []IDTokenHintVerifierOpt
+	idTokenHintVerifierOpts []IDTokenHintVerifierOpt
 }
 
 func (o *openidProvider) Issuer() string {

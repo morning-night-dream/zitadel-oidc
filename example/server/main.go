@@ -17,7 +17,7 @@ func main() {
 	// in this example it will be handled in-memory
 	storage := storage.NewStorage(storage.NewUserStore())
 
-	port := "9998"
+	port := "8888"
 	router := exampleop.SetupServer(ctx, "http://localhost:"+port, storage)
 
 	server := &http.Server{

@@ -3,6 +3,7 @@ package op
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -60,6 +61,7 @@ func authorizeHandler(authorizer Authorizer) func(http.ResponseWriter, *http.Req
 
 func authorizeCallbackHandler(authorizer Authorizer) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("ログイン成功後、リダイレクトされる. issuer[%s]", authorizer.Issuer())
 		AuthorizeCallback(w, r, authorizer)
 	}
 }
@@ -382,41 +384,55 @@ func ValidateAuthReqIDTokenHint(ctx context.Context, idTokenHint string, verifie
 
 // RedirectToLogin redirects the end user to the Login UI for authentication
 func RedirectToLogin(authReqID string, client Client, w http.ResponseWriter, r *http.Request) {
+	// Redirect to the login page
+	// ログイン画面を配信しているサーバーはこの認証サーバーとは限らないのでここで返すのではなくリダイレクトでアクセスさせる
+	log.Printf("認証サーバーがエンドユーザーに対してログイン画面を取得しにいくためのURL(%s)を302で返す with authRequestId(%s)", client.LoginURL(authReqID), authReqID)
 	login := client.LoginURL(authReqID)
 	http.Redirect(w, r, login, http.StatusFound)
 }
 
 // AuthorizeCallback handles the callback after authentication in the Login UI
 func AuthorizeCallback(w http.ResponseWriter, r *http.Request, authorizer Authorizer) {
+	log.Println("ログイン成功後リダイレクトしてアクセスが発生")
+	// リクエストパラメータからidを取り出している
 	params := mux.Vars(r)
 	id := params["id"]
 	if id == "" {
+		log.Println("idが空だったので不正アクセスとしている")
 		AuthRequestError(w, r, nil, fmt.Errorf("auth request callback is missing id"), authorizer.Encoder())
 		return
 	}
 
+	// MND-MEMO: ログイン画面取得時に保存したリクエストを取り出す
 	authReq, err := authorizer.Storage().AuthRequestByID(r.Context(), id)
 	if err != nil {
+		// 最初に登録されていたidと異なるのだろう
+		log.Println("認証フローを開始していないユーザーなのでエラーとする")
 		AuthRequestError(w, r, nil, err, authorizer.Encoder())
 		return
 	}
+	// Doneかどうかってどこで判断されているの？
 	if !authReq.Done() {
 		AuthRequestError(w, r, authReq,
 			oidc.ErrInteractionRequired().WithDescription("Unfortunately, the user may be not logged in and/or additional interaction is required."),
 			authorizer.Encoder())
 		return
 	}
+	log.Printf("認証に成功したユーザーでした。")
 	AuthResponse(authReq, authorizer, w, r)
 }
 
 // AuthResponse creates the successful authentication response (either code or tokens)
 func AuthResponse(authReq AuthRequest, authorizer Authorizer, w http.ResponseWriter, r *http.Request) {
+	// このclientはなに？
 	client, err := authorizer.Storage().GetClientByClientID(r.Context(), authReq.GetClientID())
 	if err != nil {
 		AuthRequestError(w, r, authReq, err, authorizer.Encoder())
 		return
 	}
+	log.Printf("ResponseType: %s", authReq.GetResponseType())
 	if authReq.GetResponseType() == oidc.ResponseTypeCode {
+		// response_type=code のフローを辿る場合はここに来る
 		AuthResponseCode(w, r, authReq, authorizer)
 		return
 	}
@@ -438,6 +454,8 @@ func AuthResponseCode(w http.ResponseWriter, r *http.Request, authReq AuthReques
 		state: authReq.GetState(),
 	}
 	callback, err := AuthResponseURL(authReq.GetRedirectURI(), authReq.GetResponseType(), authReq.GetResponseMode(), &codeResponse, authorizer.Encoder())
+	// 認証フローが終了しアプリサーバー側にリダイレクトさせる
+	log.Printf("認証フロー終わり。最後に %s にリダイレクトさせます", callback)
 	if err != nil {
 		AuthRequestError(w, r, authReq, err, authorizer.Encoder())
 		return

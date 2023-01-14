@@ -3,6 +3,7 @@ package op
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
@@ -19,11 +20,15 @@ type UserinfoProvider interface {
 
 func userinfoHandler(userinfoProvider UserinfoProvider) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("ユーザー情報取得リクエストが発生しました. リクエスト: %+v", r)
 		Userinfo(w, r, userinfoProvider)
 	}
 }
 
 func Userinfo(w http.ResponseWriter, r *http.Request, userinfoProvider UserinfoProvider) {
+	log.Printf("Authorization Header: %s", r.Header.Get("Authorization"))
+	// こいつはアクセストークン？
+	// アクセストークンはどのタイミングで取得している？
 	accessToken, err := ParseUserinfoRequest(r, userinfoProvider.Decoder())
 	if err != nil {
 		http.Error(w, "access token missing", http.StatusUnauthorized)

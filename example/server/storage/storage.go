@@ -122,8 +122,8 @@ func (s *Storage) CreateAuthRequest(ctx context.Context, authReq *oidc.AuthReque
 	// MND_MEMO: どのセッションでログインをしたいか管理する必要がある
 	// MND_MEMO: クライアントがそのセッションは宣言してくる（リクエストにstateとして含まれる）
 	// MND_MEMO: その情報は認証サーバーがauthRequestIDをキーとして管理する
-	log.Printf("ログイン画面を取得するためにアプリサーバーが送信してきた値を管理するためのキー(authRequestID)%s", request.ID)
-	log.Printf("を認証サーバーのストレージに保存しました。")
+	log.Printf("ログイン画面を取得するためにアプリサーバーが送信してきた値を管理するためのキー(authRequestID)%s を認証サーバーのストレージに保存しました。", request.ID)
+	log.Printf("key: %s, value: %+v", request.ID, request)
 
 	// and save it in your database (for demonstration purposed we will use a simple map)
 	s.authRequests[request.ID] = request
